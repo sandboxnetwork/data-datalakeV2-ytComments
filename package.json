@@ -1,6 +1,6 @@
 {
-  "name": "sandbox-youtube-comments-lite",
-  "version": "0.0.3",
+  "name": "sandbox-youtube-comments",
+  "version": "0.1.0",
   "description": "Sandbox network youtube comment analyze library",
   "main": "libs/bundle.js",
   "types": "libs/bundle.d.ts",
@@ -20,8 +20,8 @@
     "fast"
   ],
   "author": {
-    "name" : "Sandboxnetwork CT-DEV",
-    "email" : "jseo@sandboxnetwork.net"
+    "name": "Sandboxnetwork CT-DEV",
+    "email": "jseo@sandboxnetwork.net"
   },
   "license": "ISC",
   "devDependencies": {
