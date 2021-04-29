@@ -5,6 +5,7 @@
 * **this module do not use headless browser, just use ajax.**
 * **this module can get comment from video website**
 * **this module do not use youtube/google api, don't worry google api quota**
+* unlimited comment crawling comment
 
 **Sample Code**
 -
