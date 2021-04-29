@@ -20,13 +20,14 @@ describe('crawling comment test 20', () => {
 describe('crawling comment test 30', () => {
   it('crawling comments 30', async () => {
     const result = await crawling('QIccuFGe-mc', 30);
+    console.log(result);
     expect(result.length).toEqual(30);
   });
 });
 
 describe('crawling comment test 200', () => {
   it('crawling comments 200', async () => {
-    const result = await crawling('gdZLi9oWNZg', 230);
+    const result = await crawling('gdZLi9oWNZg', 200);
     expect(result.length).toEqual(200);
   });
 });
@@ -41,13 +42,13 @@ describe('crawling callback comment test', () => {
   });
 });
 
-describe('crawling callback comment test 130', () => {
+describe('crawling callback comment test 230', () => {
   it('crawling callback comment', done => {
     let total = 0;
     crawlingCallback('gdZLi9oWNZg', 230, (arr, end) => {
       total += arr.length;
       if (arr.length > 1 && end) {
-        if (end === true && total === 200) {
+        if (end === true && total >= 230) {
           done();
         }
       }
