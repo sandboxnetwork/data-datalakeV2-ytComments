@@ -36,7 +36,7 @@ npm install sandbox-youtube-comments
 
 **SYC APIS**
 -
-* SYCL Funcitons(Typescript)
+* SYC Funcitons(Typescript)
     **comment crawling** : return all comments
     ```ts
     import {crawling, crawlingCallback} from 'sandbox-youtube-comments';
@@ -60,7 +60,7 @@ npm install sandbox-youtube-comments
             - results: comments
             - end: is end or not
 
-* SYCL Funcitons(Nodejs)
+* SYC Funcitons(Nodejs)
  **comment crawling** : return all comments
     ```js
     const syc = require('sandbox-youtube-comments');
