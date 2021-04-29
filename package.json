@@ -12,8 +12,13 @@
     "build:dev": "webpack --config webpack-config/webpack.dev.config.js",
     "build:prod": "webpack --config webpack-config/webpack.prod.config.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandboxnetwork/sandbox-youtube-comments-crawling.git"
+  },
   "keywords": [
     "youtube",
+    "video",
     "comment",
     "crawling",
     "extract",

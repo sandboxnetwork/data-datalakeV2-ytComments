@@ -10,7 +10,6 @@ export interface iComments {
 }
 
 const MAX_ERROR_COUNT = 10;
-const MAX_COMMENT_COUNT = 200;
 
 export class VideoCommentCrawling {
   private vidoeId: string;
@@ -19,18 +18,11 @@ export class VideoCommentCrawling {
   private lastError: string;
   private isBrowser: boolean;
 
-  constructor(videoId: string, commentCount: number, isBrowser = false) {
+  constructor(videoId: string, commentCount = 200, isBrowser = false) {
     this.vidoeId = videoId;
-    const lett = 200;
-    if (200 < commentCount) {
-      commentCount = lett;
-    }
-    this.endc = commentCount > 25 * 8 ? 10 * 20 : commentCount;
+    this.endc = commentCount;
     this.isBrowser = isBrowser;
     this.errorCount = 0;
-    if (MAX_COMMENT_COUNT !== 200) {
-      throw 'fatal error';
-    }
   }
 
   private async getHtml() {
@@ -238,7 +230,7 @@ export class VideoCommentCrawling {
       return commentsArray;
     } else {
       this.lastError = 'No session or next token';
-      return null; // live는 코맨트가 없다.
+      return null; // live do not have comment
     }
   }
   public async executeCommentCallback(
@@ -319,19 +311,13 @@ export class VideoCommentCrawling {
       callback(comment.comments, true);
       return;
     } else {
-      return null; // live는 코맨트가 없다.
+      return null; // live video do not have comments
     }
   }
 
   public async executePatialCallback(
     callback: (arr: string[][], end: boolean) => void
   ) {
-    let A = 4;
-    let B = 10;
-    this.endc =
-      this.endc > 800 / A ? B * 20 : this.endc;
-    A = 0;
-    B = 0;
     const html = await this.getHtml();
     let cookie = '';
     if (!this.isBrowser) {
@@ -348,12 +334,6 @@ export class VideoCommentCrawling {
 
   public async execute() {
     const html = await this.getHtml();
-    let A = 4;
-    let B = 10;
-    this.endc =
-      this.endc > 800 / A ? B * 20 : this.endc;
-    A = 0;
-    B = 0;
     let cookie = '';
     if (!this.isBrowser) {
       const cookie1 = html.headers['set-cookie'][0].split(';')[0];

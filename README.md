@@ -1,12 +1,10 @@
-# Sandbox Youtube Comment Crawling Lite
-![alt text](https://raw.githubusercontent.com/jisueo/sycl-sample/master/sd_min.png) Youtube video comment crawling module just crawling web page (SYCL)
+# Sandbox Youtube Comment Crawling
+![alt text](https://raw.githubusercontent.com/jisueo/sycl-sample/master/sd_min.png) Youtube video comment crawling module just crawling web page (SYC)
 
 * **pure crawling youtube video site and public api**
 * **this module do not use headless browser, just use ajax.**
-* **this module can get 200 comment from video website**
-* **this module Do not use youtube/google api, don't worry google api quota**
-* this is lite version. lite version just support 200 comments
-* pro-version(unlimited comments crawling) is planned
+* **this module can get comment from video website**
+* **this module do not use youtube/google api, don't worry google api quota**
 
 **Sample Code**
 -
@@ -16,17 +14,17 @@
 **Install**
 -
 ```
-npm install sandbox-youtube-comments-lite
+npm install sandbox-youtube-comments
 ```
-- this module name is **SYCL**
+- this module name is **SYC**
 
 **Support features:**
 -
 
 - Get comments from youtube video web site
-- this SYCL don't use headless browser and selector library like cheerio or spider, just use ajax, so fast and light
+- this SYC don't use headless browser and selector library like cheerio or scrapy, just use ajax, so fast and light
     - use public youtube API: https://www.youtube.com/comment_service_ajax
-- this works in nodejs and electron
+- this works on nodejs and electron
     - unfortunately, not support common modern browser because CORS or SOP error
 - Typescript support
 
@@ -35,28 +33,28 @@ npm install sandbox-youtube-comments-lite
 - axios
 - form-data
 
-**SYCL APIS**
+**SYC APIS**
 -
 * SYCL Funcitons(Typescript)
     **comment crawling** : return all comments
     ```ts
-    import {crawling, crawlingCallback} from 'sandbox-youtube-comments-lite';
+    import {crawling, crawlingCallback} from 'sandbox-youtube-comments';
     const result = await crawling('QIccu1Ge-mc', 20);
     ```
     - crawling(videoid: string, limit: number)
         - videoID: Youtube video id
-        - limit: how many comment, this lite version can get 200 comment max 
+        - limit: how many comment
 
-    **comment crawling callback**: when Each comments obtain from youtube api,  callback is called. commonly 20 comments are obtained at once  
-    - if you want 200 comment, callback is called 20 times approximately 
+    **comment crawling callback**: when each comments obtain from youtube api, callback is called. commonly 20 comments are obtained at once  
+    - if you want 200 comment, callback is called 10 times approximately 
     ```ts
-    import {crawlingCallback} from 'sandbox-youtube-comments-lite';
+    import {crawlingCallback} from 'sandbox-youtube-comments';
      crawlingCallback('QIccu1Ge-mc', 1, (arr, end) => {
      });
     ```
     - crawlingCallback(videoid: string, limit: number, callback: (results, end))
         - videoID: Youtube video id
-        - limit: how many comment, this lite version can get 200 comment max 
+        - limit: how many comment
         - callback
             - results: comments
             - end: is end or not
@@ -64,10 +62,10 @@ npm install sandbox-youtube-comments-lite
 * SYCL Funcitons(Nodejs)
  **comment crawling** : return all comments
     ```js
-    const sycl = require('sandbox-youtube-comments-lite');
+    const syc = require('sandbox-youtube-comments');
 
     async function test() {
-        const result = await sycl.crawling('ONpwVdyngpY', 30);
+        const result = await syc.crawling('ONpwVdyngpY', 30);
         console.log(result);    
     }
     ```
@@ -103,7 +101,7 @@ npm install sandbox-youtube-comments-lite
     ]
     ```
    
-**SYCL LICENSE**
+**SYC LICENSE**
 - SANDBOX NETWORK ISC
 ```
 Copyright (c) 2021 year, Sandboxnetwork Inc CT-DEV
