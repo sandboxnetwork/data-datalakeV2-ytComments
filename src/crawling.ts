@@ -114,11 +114,11 @@ export class VideoCommentCrawling {
         result.data.response.continuationContents.itemSectionContinuation
           .contents;
       const pureCommentContents = commentContents.map(item => {
-        return item.commentThreadRenderer.comment.commentRenderer.contentText.runs.map(
+        const runs = item.commentThreadRenderer.comment.commentRenderer.contentText.runs.map(
           item => item.text
         );
+        return runs && runs.length > 0 ? runs[0] : '';
       });
-
       const comments = {
         count: commentCount,
         comments: pureCommentContents,
@@ -233,6 +233,82 @@ export class VideoCommentCrawling {
       return null; // live do not have comment
     }
   }
+  public async *executeCommentIterator(data: string, cookies: string) {
+    let accuCount = 0;
+
+    const sessionToken = this.analizeCommentTokenExtract(data);
+    const conti = this.analizeContinuationsInfo(data);
+    if (conti) {
+      //this is first time comment
+      let comment = await this.getComment(
+        sessionToken,
+        conti.continuation,
+        conti.clickTrackingParams,
+        cookies,
+        true
+      );
+      if (comment) {
+        let commentsArray = new Array<string[]>();
+        if (comment.comments && comment.comments.length > 0) {
+          accuCount += comment.comments.length;
+          if (accuCount <= this.endc) {
+            commentsArray = commentsArray.concat(comment.comments);
+            yield commentsArray;
+          } else {
+            commentsArray = commentsArray.concat(
+              comment.comments.slice(0, this.endc)
+            );
+            yield commentsArray;
+          }
+        }
+      }
+      while (
+        accuCount < this.endc &&
+        comment &&
+        comment.continuation &&
+        comment.nextTrack
+      ) {
+        let commentsArray = new Array<string[]>();
+        comment = await this.getComment(
+          sessionToken,
+          comment.continuation,
+          comment.nextTrack,
+          cookies,
+          false
+        );
+        if (comment && comment.comments && comment.comments.length > 0) {
+          accuCount += comment.comments.length;
+          if (
+            accuCount < this.endc &&
+            comment.continuation &&
+            comment.nextTrack
+          ) {
+            commentsArray = commentsArray.concat(comment.comments);
+            yield commentsArray;
+          } else {
+            commentsArray = commentsArray.concat(
+              comment.comments.slice(
+                0,
+                comment.comments.length - (accuCount - this.endc)
+              )
+            );
+            yield commentsArray;
+            return;
+          }
+        } else {
+          this.errorCount++;
+          if (this.errorCount >= MAX_ERROR_COUNT) {
+            this.lastError = 'Over max error count, fail get comment request';
+            throw 'Over max error count, fail get comment request';
+            return null;
+          }
+        }
+      }
+      yield comment.comments;
+    } else {
+      return null; // live video do not have comments
+    }
+  }
   public async executeCommentCallback(
     data: string,
     cookies: string,
@@ -312,6 +388,21 @@ export class VideoCommentCrawling {
       return;
     } else {
       return null; // live video do not have comments
+    }
+  }
+
+  public async executePatialItorator() {
+    const html = await this.getHtml();
+    let cookie = '';
+    if (!this.isBrowser) {
+      const cookie1 = html.headers['set-cookie'][0].split(';')[0];
+      const cookie2 = html.headers['set-cookie'][1].split(';')[0];
+      const cookie3 = html.headers['set-cookie'][2].split(';')[0];
+      cookie = `${cookie1}; ${cookie2}; ${cookie3};`;
+    }
+
+    if (html) {
+      return this.executeCommentIterator(html.data, cookie);
     }
   }
 

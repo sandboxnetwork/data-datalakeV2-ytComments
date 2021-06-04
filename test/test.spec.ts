@@ -1,6 +1,6 @@
 // tslint:disable-next-line:no-import-side-effect
 import 'jasmine';
-import {crawling, crawlingCallback} from '../src/main';
+import {crawling, crawlingCallback, crawlingIterator} from '../src/main';
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 26000;
 describe('crawling comment test 10', () => {
@@ -20,7 +20,6 @@ describe('crawling comment test 20', () => {
 describe('crawling comment test 30', () => {
   it('crawling comments 30', async () => {
     const result = await crawling('QIccuFGe-mc', 30);
-    console.log(result);
     expect(result.length).toEqual(30);
   });
 });
@@ -39,6 +38,20 @@ describe('crawling callback comment test', () => {
         done();
       }
     });
+  });
+});
+
+describe('crawling itorable comment test 230', () => {
+  it('crawling itorable comment', async () => {
+    const itor = await crawlingIterator('gdZLi9oWNZg', 230);
+    let d = false;
+    let length = 0;
+    while (!d) {
+      const {value, done} = await itor.next();
+      length += value ? value.length : 0;
+      d = done;
+    }
+    expect(length).toEqual(230);
   });
 });
 

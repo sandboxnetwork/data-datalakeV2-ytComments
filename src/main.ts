@@ -13,6 +13,11 @@ export async function crawlingCallback_(
     callback
   );
 }
+export async function crawlingIterator_(videoId: string, limit) {
+  return await new VideoCommentCrawling(videoId, limit).executePatialItorator();
+}
 
 export const crawling = crawling_;
 export const crawlingCallback = crawlingCallback_;
+export const crawlingIterator = crawlingIterator_;
+
