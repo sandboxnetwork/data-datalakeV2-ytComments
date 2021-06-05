@@ -43,7 +43,7 @@ describe('crawling callback comment test', () => {
 
 describe('crawling itorable comment test 230', () => {
   it('crawling itorable comment', async () => {
-    const itor = await crawlingIterator('gdZLi9oWNZg', 230);
+    const itor = await crawlingIterator('UcgvY9v6QmQ', 230);
     let d = false;
     let length = 0;
     while (!d) {

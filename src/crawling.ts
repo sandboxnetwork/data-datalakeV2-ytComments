@@ -117,7 +117,7 @@ export class VideoCommentCrawling {
         const runs = item.commentThreadRenderer.comment.commentRenderer.contentText.runs.map(
           item => item.text
         );
-        return runs && runs.length > 0 ? runs[0] : '';
+        return runs && runs.length > 0 ? runs.join('') : '';
       });
       const comments = {
         count: commentCount,

@@ -3,9 +3,13 @@
 
 * **pure crawling youtube video site and public api**
 * **this module do not use headless browser, just use ajax.**
-* **this module can get comment from video website**
+* **this module can extract comment from youtube video website**
 * **this module do not use youtube/google api, don't worry google api quota**
 * unlimited comment crawling comment
+
+* 1.5 version update include
+    - result data type change [[aaaa], [bbbb], [ccc]] -> [aaaa,bbbb,ccc]
+    - support yield, next functions
 
 **Sample Code**
 -
@@ -36,32 +40,53 @@ npm install sandbox-youtube-comments
 
 **SYC APIS**
 -
-* SYC Funcitons(Typescript)
+* Tyscript
+
     **comment crawling** : return all comments
-    ```ts
-    import {crawling, crawlingCallback} from 'sandbox-youtube-comments';
-    const result = await crawling('QIccu1Ge-mc', 20);
-    ```
+    - if you want 20 comment
+        ```ts
+        import {crawling, crawlingCallback} from 'sandbox-youtube-comments';
+        const result = await crawling('QIccu1Ge-mc', 20);
+        ```
     - crawling(videoid: string, limit: number)
         - videoID: Youtube video id
         - limit: how many comment
 
+    **comment crawling itorator**: when each comments obtain from youtube api, return async yield type 
+    - if you want 200 comment
+        ```ts
+        import {crawlingIterator} from 'sandbox-youtube-comments';
+
+        const itor = await crawlingIterator('UcfvY9v6QmQ', 200);
+        let d = false;
+        let length = 0;
+        while (!d) {
+            const {value, done} = await itor.next();
+            length += value ? value.length : 0;
+            d = done;
+        }
+        ```
+    - crawlingIterator(videoid: string, limit: number)
+        - videoID: Youtube video id
+        - limit: how many comment
+        - return itorator function
+     
     **comment crawling callback**: when each comments obtain from youtube api, callback is called. commonly 20 comments are obtained at once  
     - if you want 200 comment, callback is called 10 times approximately 
-    ```ts
-    import {crawlingCallback} from 'sandbox-youtube-comments';
-     crawlingCallback('QIccu1Ge-mc', 1, (arr, end) => {
-     });
-    ```
+        ```ts
+        import {crawlingCallback} from 'sandbox-youtube-comments';
+        crawlingCallback('QIccu1Ge-mc', 1, (arr, end) => {
+        });
+        ```
     - crawlingCallback(videoid: string, limit: number, callback: (results, end))
         - videoID: Youtube video id
         - limit: how many comment
         - callback
             - results: comments
             - end: is end or not
-
+            
 * SYC Funcitons(Nodejs)
- **comment crawling** : return all comments
+    **comment crawling** : return all comments
     ```js
     const syc = require('sandbox-youtube-comments');
 
@@ -70,37 +95,52 @@ npm install sandbox-youtube-comments
         console.log(result);    
     }
     ```
+
+    **comment crawling** : callback
+    ```js
+    const syc = require('sandbox-youtube-comments');
+
+    async function test() {
+        const result = await syc.crawlingCallback('ONpwVdyngpY', 30, (arr, end) => {
+                console.log(arr);   
+        });
+         
+    }
+    ```
+
+    **comment crawling** : yield
+    ```js
+    const syc = require('sandbox-youtube-comments');
+    async function test() {
+        const itor = await syc.crawlingIterator('ONpwVdyngpY', 30);
+        let d = false;
+        let length = 0;
+        while (!d) {
+            const {value, done} = await itor.next();
+            length += value ? value.length : 0;
+            d = done;
+        }
+        console.log(result);    
+    }
+
 * Output
-    - output data is string[][], 
-    - each comment is splited '\n'
-    - if string[0] is ['ABCD', '\n', 'EFGH], this comment present in site like
-    ```
-    ABCD
-    EFGH
-    ```
+    - output data is string[], 
+    - if comment have line feed or carriage return, originally youtube present like ['ABCD', '\n', 'EFGH]
+    - SYC module merge this things, ['ABCD\nEFGH']
 
     - example 7 comments
     ```
     [
-        [ 'Sandbox network ct dev team' ],
-        [ 'WOW!!!' ],
-        [ 'Que clipe' ],
-        [ 'wow....wonderfull' ],
-        [
-            '“We are literally strong.'
-        ],
-        [
-            "Popular opinion"
-        ],
-        [
-            'this is',
-            '\n',
-            '\n',
-            'Me: ',
-            '*almost broke my leg*'
-        ],
+        'Sandbox network ct dev team',
+        'WOW!!!',
+        'Que clipe',
+        'wow....wonderfull',
+        'We are literally strong.'
+        'Popular opinion'
     ]
     ```
+
+- If comment have '\r\n' or '\n' -> 'Sandbox network ct dev team \nleader jisueo',
    
 **SYC LICENSE**
 - SANDBOX NETWORK ISC

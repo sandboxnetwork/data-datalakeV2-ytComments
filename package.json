@@ -1,7 +1,7 @@
 {
   "name": "sandbox-youtube-comments",
-  "version": "0.1.0",
-  "description": "Sandbox network youtube comment analyze library",
+  "version": "0.1.5",
+  "description": "Sandbox network youtube comment crawling library",
   "main": "libs/bundle.js",
   "types": "libs/bundle.d.ts",
   "scripts": {
@@ -21,6 +21,8 @@
     "video",
     "comment",
     "crawling",
+    "ajax",
+    "json",
     "extract",
     "fast"
   ],
