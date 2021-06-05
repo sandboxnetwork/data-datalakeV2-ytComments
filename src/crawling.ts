@@ -3,7 +3,7 @@ import * as FormDataNode from 'form-data';
 
 export interface iComments {
   count?: number;
-  comments: Array<string[]>;
+  comments: Array<string>;
   continuation?: string;
   nextTrack?: string;
   token: string;
@@ -312,7 +312,7 @@ export class VideoCommentCrawling {
   public async executeCommentCallback(
     data: string,
     cookies: string,
-    callback: (arr: string[][], end: boolean) => void
+    callback: (arr: string[], end: boolean) => void
   ) {
     let accuCount = 0;
 
@@ -328,7 +328,7 @@ export class VideoCommentCrawling {
         true
       );
       if (comment) {
-        let commentsArray = new Array<string[]>();
+        let commentsArray = new Array<string>();
         if (comment.comments && comment.comments.length > 0) {
           accuCount += comment.comments.length;
           if (accuCount <= this.endc) {
@@ -348,7 +348,7 @@ export class VideoCommentCrawling {
         comment.continuation &&
         comment.nextTrack
       ) {
-        let commentsArray = new Array<string[]>();
+        let commentsArray = new Array<string>();
         comment = await this.getComment(
           sessionToken,
           comment.continuation,
@@ -407,7 +407,7 @@ export class VideoCommentCrawling {
   }
 
   public async executePatialCallback(
-    callback: (arr: string[][], end: boolean) => void
+    callback: (arr: string[], end: boolean) => void
   ) {
     const html = await this.getHtml();
     let cookie = '';
