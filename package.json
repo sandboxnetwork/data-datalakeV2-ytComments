@@ -1,6 +1,6 @@
 {
   "name": "sandbox-youtube-comments",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Sandbox network youtube comment crawling library",
   "main": "libs/bundle.js",
   "types": "libs/bundle.d.ts",
