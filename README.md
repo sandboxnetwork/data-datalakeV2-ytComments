@@ -7,9 +7,10 @@
 * **this module do not use youtube/google api, don't worry google api quota**
 * unlimited comment crawling comment
 
-* 1.5 version update include
+* 0.2.0 version update include
     - result data type change [[aaaa], [bbbb], [ccc]] -> [aaaa,bbbb,ccc]
     - support yield, next functions
+    - support new youtube method(endpoint) `youtubei/v1/next`
 
 **Sample Code**
 -
@@ -28,7 +29,10 @@ npm install sandbox-youtube-comments
 
 - Get comments from youtube video web site
 - this SYC don't use headless browser and selector library like cheerio or scrapy, just use ajax, so fast and light
-    - use public youtube API: https://www.youtube.com/comment_service_ajax
+    - <s>use public youtube API: https://www.youtube.com/comment_service_ajax</s>
+    - youtube change method(end point), they use `https://www.youtube.com/youtubei/v1/next` now
+    - `comment_service_ajax` not work any more
+    
 - this works on nodejs and electron
     - unfortunately, not support common modern browser because CORS or SOP error
 - Typescript support
@@ -151,3 +155,5 @@ Permission to use, copy, modify, and/or distribute this software for any purpose
 
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
+
+made by sandboxnetwork jisueo
