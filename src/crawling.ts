@@ -9,20 +9,37 @@ export interface iComments {
   token: string;
 }
 
-const MAX_ERROR_COUNT = 10;
+export interface iCommentConfig {
+  token: string;
+  apikey: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any;
+  clientVersion: string;
+  clientName: string;
+}
+
+export interface iContinuationConfig {
+  endpoint: {
+    sendPost: boolean;
+    apiUrl: string;
+  };
+  command: {
+    token: string;
+    request: string;
+  };
+  clickTrackingParams: string;
+}
+
+export type CommentCallback = (arr: string[], end: boolean) => void;
 
 export class VideoCommentCrawling {
   private vidoeId: string;
-  private endc: number;
-  private errorCount: number;
-  private lastError: string;
-  private isBrowser: boolean;
-
-  constructor(videoId: string, commentCount = 200, isBrowser = false) {
+  private limit: number;
+  private YOUTUBE_CONFIG_VARIABLE_NAME = 'ytcfg.set';
+  private comments = [];
+  constructor(videoId: string, commentCount = 200) {
     this.vidoeId = videoId;
-    this.endc = commentCount;
-    this.isBrowser = isBrowser;
-    this.errorCount = 0;
+    this.limit = commentCount;
   }
 
   private async getHtml() {
@@ -30,10 +47,9 @@ export class VideoCommentCrawling {
       const result = await axios.get(
         `https://www.youtube.com/watch?v=${this.vidoeId}`
       );
-
       return result;
     } catch (error) {
-      console.error(error);
+      return null;
     }
   }
 
@@ -45,401 +61,333 @@ export class VideoCommentCrawling {
     return unescape(unicodeString);
   }
 
-  private async getComment(
-    token: string,
-    continuation: string,
-    clickTrackingParams: string,
-    cookies: string,
-    isFirst: boolean
-  ): Promise<iComments | null> {
-    const uToken = this.decodeUnicode(token);
-    const uContinuation = continuation;
-    const uClickTrackingParams = clickTrackingParams;
-    const formData = new FormDataNode();
-
-    formData.append('session_token', uToken);
-    const formHeaders = formData.getHeaders();
-    const contentsLength = formData.getLengthSync();
-    let sendHeader = {};
-    const baseHeader = {
-      ...formHeaders,
-      'content-length': contentsLength,
-      'x-youtube-client-name': 1,
-      'x-youtube-client-version': '2.20210322.08.00',
-    };
-
-    if (cookies && cookies.length > 0) {
-      sendHeader = {...baseHeader, cookie: cookies};
-    } else {
-      sendHeader = baseHeader;
-    }
+  private analizeContinuationsInfo(data: string): iContinuationConfig | null {
     try {
+      const findIndex = data.indexOf('ytInitialData = ');
+      if (findIndex >= 0) {
+        const InitText = data.slice(findIndex);
+        const initDatas = InitText.match(new RegExp(' = ({.*?});', 'ig'));
+        if (initDatas && initDatas.length > 0) {
+          const ytInitialData = JSON.parse(initDatas[0].slice(3).slice(0, -1));
+          const ytContents =
+            ytInitialData.contents.twoColumnWatchNextResults.results.results
+              .contents;
+          let commentItemSection = null;
+          ytContents.forEach(item => {
+            if (item.itemSectionRenderer !== undefined) {
+              const identifier = item.itemSectionRenderer.sectionIdentifier;
+              if (identifier === 'comment-item-section') {
+                commentItemSection = item.itemSectionRenderer;
+              }
+            }
+          });
+
+          const commentContents = commentItemSection.contents;
+          if (commentContents && commentContents.length > 0) {
+            const continuationItem =
+              commentContents[0].continuationItemRenderer;
+            const endpoint =
+              continuationItem.continuationEndpoint.commandMetadata
+                .webCommandMetadata;
+            const command =
+              continuationItem.continuationEndpoint.continuationCommand;
+
+            const contiuation: iContinuationConfig = {
+              endpoint: endpoint,
+              command: command,
+              clickTrackingParams: commentItemSection.trackingParams,
+            };
+            return contiuation;
+          }
+        }
+      }
+    } catch (e) {
+      throw 'Youtube api contination extract fail';
+    }
+  }
+
+  private analizeCommentConfigExtract(data: string): iCommentConfig | null {
+    try {
+      const findIndex = data.indexOf('ytcfg.set({"CLIENT_CANARY_STATE');
+      if (findIndex >= 0) {
+        const cfgText = data.slice(findIndex);
+        const cfgDatas = cfgText.match(
+          new RegExp(this.YOUTUBE_CONFIG_VARIABLE_NAME + '\\(({.*?})\\);', 'ig')
+        );
+
+        if (cfgDatas && cfgDatas.length > 0) {
+          const cfgJsonText = cfgDatas[0].slice(10).slice(0, -2);
+          const cfgInfos = JSON.parse(cfgJsonText);
+          const configInfo: iCommentConfig = {
+            token: cfgInfos.XSRF_TOKEN,
+            apikey: cfgInfos.INNERTUBE_API_KEY,
+            context: cfgInfos.INNERTUBE_CONTEXT,
+            clientVersion: cfgInfos.INNERTUBE_CLIENT_VERSION,
+            clientName: cfgInfos.INNERTUBE_CONTEXT_CLIENT_NAME,
+          };
+          return configInfo;
+        }
+        return null;
+      }
+    } catch (e) {
+      throw 'Youtube api config extract fail';
+      return null;
+    }
+  }
+
+  private async extractComment(
+    config: iCommentConfig,
+    continuation: iContinuationConfig,
+    isFirst: boolean,
+    callback: CommentCallback | null
+  ) {
+    try {
+      const endpoint = continuation.endpoint;
+      const clickTrackingParams = continuation.clickTrackingParams;
+      const command = continuation.command;
+
+      const CommentUrl = `https://www.youtube.com${endpoint.apiUrl}?key=${config.apikey}`;
+      const requestBody = {
+        continuation: command.token,
+        context: {
+          client: config.context.client,
+          user: config.context.user,
+          request: config.context.request,
+          clickTracking: {
+            clickTrackingParams: clickTrackingParams,
+          },
+        },
+      };
+      const requestHeader = {
+        'Content-Type': 'application/json',
+        'x-youtube-client-name': config.clientName,
+        'x-youtube-client-version': config.clientVersion,
+      };
+
       const result = await axios({
         method: 'post',
-        url: `https://www.youtube.com/comment_service_ajax?action_get_comments=1&pbj=1&ctoken=${uContinuation}&continuation=${uContinuation}&itct=${uClickTrackingParams}`,
-        data: formData,
-        headers: sendHeader,
+        url: CommentUrl,
+        data: requestBody,
+        headers: requestHeader,
       });
-
-      let nextContinuation = null;
-      let nextClickTrack = null;
-
-      if (
-        result.data.response.continuationContents.itemSectionContinuation
-          .continuations
-      ) {
-        if (
-          result.data.response.continuationContents.itemSectionContinuation
-            .continuations[0].nextContinuationData.continuation
-        ) {
-          nextContinuation =
-            result.data.response.continuationContents.itemSectionContinuation
-              .continuations[0].nextContinuationData.continuation;
-          nextClickTrack =
-            result.data.response.continuationContents.itemSectionContinuation
-              .continuations[0].nextContinuationData.clickTrackingParams;
+      if (result.status === 200) {
+        const nextCommentData = result.data;
+        let responseRecievedEndPoint = null;
+        let continuationItems = null;
+        if (isFirst) {
+          responseRecievedEndPoint =
+            nextCommentData.onResponseReceivedEndpoints;
+          continuationItems =
+            responseRecievedEndPoint[1].reloadContinuationItemsCommand
+              .continuationItems;
+        } else {
+          responseRecievedEndPoint =
+            nextCommentData.onResponseReceivedEndpoints;
+          continuationItems =
+            responseRecievedEndPoint[0].appendContinuationItemsAction
+              .continuationItems;
         }
-      }
-      let commentCount = 0;
-      //first comment collecting crawling comment whole count
-      if (isFirst) {
-        commentCount = Number(
-          result.data.response.continuationContents.itemSectionContinuation.header.commentsHeaderRenderer.countText.runs[1].text.replace(
-            /,/gi,
-            ''
-          )
-        );
-      }
-      const commentContents =
-        result.data.response.continuationContents.itemSectionContinuation
-          .contents;
-      const pureCommentContents = commentContents.map(item => {
-        const runs = item.commentThreadRenderer.comment.commentRenderer.contentText.runs.map(
-          item => item.text
-        );
-        return runs && runs.length > 0 ? runs.join('') : '';
-      });
-      const comments = {
-        count: commentCount,
-        comments: pureCommentContents,
-        continuation: nextContinuation,
-        nextTrack: nextClickTrack,
-        token: token,
-      };
-      return comments;
-    } catch (error) {
-      console.log(error);
-      return null;
-    }
-  }
 
-  private analizeContinuationsInfo(data: string) {
-    try {
-      const divString = 'ytInitialData = ';
-      const result = data.indexOf(divString);
-      const result1 = result + divString.length;
-      const result2 = data.indexOf(';</script><script nonce="', result1 + 1);
-      const value = data.slice(result1, result2);
-      const ytInitialData = JSON.parse(value);
-      const videoPrimaryInfos =
-        ytInitialData.contents.twoColumnWatchNextResults.results.results
-          .contents;
-      const itemSectionRenderer = videoPrimaryInfos.find(item => {
-        return (
-          item.itemSectionRenderer !== undefined &&
-          item.itemSectionRenderer.sectionIdentifier === 'comment-item-section'
-        );
-      }).itemSectionRenderer;
-      const continuations =
-        itemSectionRenderer.continuations[0].nextContinuationData;
+        const comments = [];
+        let nextClickTrack = null;
+        let nextEndpoint = null;
+        let nextCommend = null;
 
-      return {
-        continuation: continuations.continuation,
-        clickTrackingParams: itemSectionRenderer.trackingParams,
-      };
+        continuationItems.forEach(item => {
+          const commentThreadRenderer = item.commentThreadRenderer;
+          const continuationItemRenderer = item.continuationItemRenderer;
+          if (commentThreadRenderer) {
+            const commentRenderer =
+              commentThreadRenderer.comment.commentRenderer;
+            const commentTextRuns = commentRenderer.contentText.runs;
+            const comment = commentTextRuns.map(runs => runs.text).join('');
+            comments.push(comment);
+          } else if (continuationItemRenderer) {
+            nextClickTrack =
+              continuationItemRenderer.continuationEndpoint.clickTrackingParams;
+            nextEndpoint =
+              continuationItemRenderer.continuationEndpoint.commandMetadata
+                .webCommandMetadata;
+            nextCommend =
+              continuationItemRenderer.continuationEndpoint.continuationCommand;
+          }
+        });
+        this.comments = this.comments.concat(comments);
+
+        if (this.comments.length >= this.limit || !nextClickTrack) {
+          if (this.comments.length >= this.limit) {
+            const gapCount = this.comments.length - this.limit;
+            this.comments = this.comments.slice(0, this.limit);
+            if (callback) {
+              callback(comments.slice(0, gapCount), true);
+            }
+          } else {
+            if (callback) {
+              callback(comments, true);
+            }
+          }
+          return this.comments;
+        }
+        if (callback) {
+          callback(comments, false);
+        }
+        return this.extractComment(
+          config,
+          {
+            endpoint: nextEndpoint,
+            command: nextCommend,
+            clickTrackingParams: nextClickTrack,
+          },
+          false,
+          callback
+        );
+      }
     } catch (e) {
-      return null;
+      throw 'Extract comment error';
     }
   }
 
-  private analizeCommentTokenExtract(data: string) {
-    const divString = '"XSRF_FIELD_NAME":"session_token","XSRF_TOKEN":';
-    const result = data.indexOf(divString);
-    const result1 = data.indexOf('"', result + divString.length);
-    const result2 = data.indexOf('"', result1 + 1);
-    const sessionToken = data.slice(result1 + 1, result2);
-    return sessionToken;
-  }
-
-  public async executeComment(data: string, cookies: string) {
-    let accuCount = 0;
-    let commentsArray = new Array<string[]>();
-    const sessionToken = this.analizeCommentTokenExtract(data);
-    const conti = this.analizeContinuationsInfo(data);
-    if (conti) {
-      let comment = await this.getComment(
-        sessionToken,
-        conti.continuation,
-        conti.clickTrackingParams,
-        cookies,
-        true
-      );
-      if (comment && comment.comments) {
-        if (comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (accuCount <= this.endc) {
-            commentsArray = commentsArray.concat(comment.comments);
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(0, this.endc)
-            );
-          }
-        }
-      }
-      while (
-        accuCount < this.endc &&
-        comment &&
-        comment.continuation &&
-        comment.nextTrack
-      ) {
-        comment = await this.getComment(
-          sessionToken,
-          comment.continuation,
-          comment.nextTrack,
-          cookies,
-          false
-        );
-        if (comment && comment.comments && comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (accuCount <= this.endc) {
-            commentsArray = commentsArray.concat(comment.comments);
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(0, this.endc - accuCount)
-            );
-          }
-        } else {
-          this.errorCount++;
-          if (this.errorCount >= MAX_ERROR_COUNT) {
-            this.lastError = 'Over max error count, fail get comment request';
-            throw 'Over max error count, fail get comment request';
-            return null;
-          }
-        }
-      }
-      return commentsArray;
-    } else {
-      this.lastError = 'No session or next token';
-      return null; // live do not have comment
-    }
-  }
-  public async *executeCommentIterator(data: string, cookies: string) {
-    let accuCount = 0;
-
-    const sessionToken = this.analizeCommentTokenExtract(data);
-    const conti = this.analizeContinuationsInfo(data);
-    if (conti) {
-      //this is first time comment
-      let comment = await this.getComment(
-        sessionToken,
-        conti.continuation,
-        conti.clickTrackingParams,
-        cookies,
-        true
-      );
-      if (comment) {
-        let commentsArray = new Array<string[]>();
-        if (comment.comments && comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (accuCount <= this.endc) {
-            commentsArray = commentsArray.concat(comment.comments);
-            yield commentsArray;
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(0, this.endc)
-            );
-            yield commentsArray;
-          }
-        }
-      }
-      while (
-        accuCount < this.endc &&
-        comment &&
-        comment.continuation &&
-        comment.nextTrack
-      ) {
-        let commentsArray = new Array<string[]>();
-        comment = await this.getComment(
-          sessionToken,
-          comment.continuation,
-          comment.nextTrack,
-          cookies,
-          false
-        );
-        if (comment && comment.comments && comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (
-            accuCount < this.endc &&
-            comment.continuation &&
-            comment.nextTrack
-          ) {
-            commentsArray = commentsArray.concat(comment.comments);
-            yield commentsArray;
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(
-                0,
-                comment.comments.length - (accuCount - this.endc)
-              )
-            );
-            yield commentsArray;
-            return;
-          }
-        } else {
-          this.errorCount++;
-          if (this.errorCount >= MAX_ERROR_COUNT) {
-            this.lastError = 'Over max error count, fail get comment request';
-            throw 'Over max error count, fail get comment request';
-            return null;
-          }
-        }
-      }
-      yield comment.comments;
-    } else {
-      return null; // live video do not have comments
-    }
-  }
-  public async executeCommentCallback(
-    data: string,
-    cookies: string,
-    callback: (arr: string[], end: boolean) => void
+  private async *extractCommentItorable(
+    config: iCommentConfig,
+    continuation: iContinuationConfig,
+    isFirst: boolean
   ) {
-    let accuCount = 0;
+    try {
+      const endpoint = continuation.endpoint;
+      const clickTrackingParams = continuation.clickTrackingParams;
+      const command = continuation.command;
 
-    const sessionToken = this.analizeCommentTokenExtract(data);
-    const conti = this.analizeContinuationsInfo(data);
-    if (conti) {
-      //this is first time comment
-      let comment = await this.getComment(
-        sessionToken,
-        conti.continuation,
-        conti.clickTrackingParams,
-        cookies,
-        true
-      );
-      if (comment) {
-        let commentsArray = new Array<string>();
-        if (comment.comments && comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (accuCount <= this.endc) {
-            commentsArray = commentsArray.concat(comment.comments);
-            callback(commentsArray, false);
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(0, this.endc)
-            );
-            callback(commentsArray, true);
-          }
+      const CommentUrl = `https://www.youtube.com${endpoint.apiUrl}?key=${config.apikey}`;
+      const requestBody = {
+        continuation: command.token,
+        context: {
+          client: config.context.client,
+          user: config.context.user,
+          request: config.context.request,
+          clickTracking: {
+            clickTrackingParams: clickTrackingParams,
+          },
+        },
+      };
+      const requestHeader = {
+        'Content-Type': 'application/json',
+        'x-youtube-client-name': config.clientName,
+        'x-youtube-client-version': config.clientVersion,
+      };
+
+      const result = await axios({
+        method: 'post',
+        url: CommentUrl,
+        data: requestBody,
+        headers: requestHeader,
+      });
+      if (result.status === 200) {
+        const nextCommentData = result.data;
+        let responseRecievedEndPoint = null;
+        let continuationItems = null;
+        if (isFirst) {
+          responseRecievedEndPoint =
+            nextCommentData.onResponseReceivedEndpoints;
+          continuationItems =
+            responseRecievedEndPoint[1].reloadContinuationItemsCommand
+              .continuationItems;
+        } else {
+          responseRecievedEndPoint =
+            nextCommentData.onResponseReceivedEndpoints;
+          continuationItems =
+            responseRecievedEndPoint[0].appendContinuationItemsAction
+              .continuationItems;
         }
-      }
-      while (
-        accuCount < this.endc &&
-        comment &&
-        comment.continuation &&
-        comment.nextTrack
-      ) {
-        let commentsArray = new Array<string>();
-        comment = await this.getComment(
-          sessionToken,
-          comment.continuation,
-          comment.nextTrack,
-          cookies,
+
+        const comments = [];
+        let nextClickTrack = null;
+        let nextEndpoint = null;
+        let nextCommend = null;
+
+        continuationItems.forEach(item => {
+          const commentThreadRenderer = item.commentThreadRenderer;
+          const continuationItemRenderer = item.continuationItemRenderer;
+          if (commentThreadRenderer) {
+            const commentRenderer =
+              commentThreadRenderer.comment.commentRenderer;
+            const commentTextRuns = commentRenderer.contentText.runs;
+            const comment = commentTextRuns.map(runs => runs.text).join('');
+            comments.push(comment);
+          } else if (continuationItemRenderer) {
+            nextClickTrack =
+              continuationItemRenderer.continuationEndpoint.clickTrackingParams;
+            nextEndpoint =
+              continuationItemRenderer.continuationEndpoint.commandMetadata
+                .webCommandMetadata;
+            nextCommend =
+              continuationItemRenderer.continuationEndpoint.continuationCommand;
+          }
+        });
+        this.comments = this.comments.concat(comments);
+
+        if (this.comments.length >= this.limit || !nextClickTrack) {
+          const gepCount = this.comments.length - this.limit;
+          this.comments = this.comments.slice(0, this.limit);
+          yield comments.slice(0, gepCount);
+          return;
+        }
+
+        yield comments;
+
+        yield* this.extractCommentItorable(
+          config,
+          {
+            endpoint: nextEndpoint,
+            command: nextCommend,
+            clickTrackingParams: nextClickTrack,
+          },
           false
         );
-        if (comment && comment.comments && comment.comments.length > 0) {
-          accuCount += comment.comments.length;
-          if (
-            accuCount < this.endc &&
-            comment.continuation &&
-            comment.nextTrack
-          ) {
-            commentsArray = commentsArray.concat(comment.comments);
-            callback(commentsArray, false);
-          } else {
-            commentsArray = commentsArray.concat(
-              comment.comments.slice(
-                0,
-                comment.comments.length - (accuCount - this.endc)
-              )
-            );
-            callback(commentsArray, true);
-            return;
-          }
-        } else {
-          this.errorCount++;
-          if (this.errorCount >= MAX_ERROR_COUNT) {
-            this.lastError = 'Over max error count, fail get comment request';
-            throw 'Over max error count, fail get comment request';
-            return null;
-          }
-        }
       }
-      callback(comment.comments, true);
-      return;
-    } else {
-      return null; // live video do not have comments
+    } catch (e) {
+      throw 'Extract comment error';
     }
+  }
+
+  public async executeComment(
+    data: string,
+    callback: CommentCallback | null = null
+  ) {
+    const config = this.analizeCommentConfigExtract(data);
+    const continuation = this.analizeContinuationsInfo(data);
+    return this.extractComment(config, continuation, true, callback);
+  }
+
+  public executeCommentItorable(data: string) {
+    const config = this.analizeCommentConfigExtract(data);
+    const continuation = this.analizeContinuationsInfo(data);
+    return this.extractCommentItorable(config, continuation, true);
   }
 
   public async executePatialItorator() {
     const html = await this.getHtml();
-    let cookie = '';
-    if (!this.isBrowser) {
-      const cookie1 = html.headers['set-cookie'][0].split(';')[0];
-      const cookie2 = html.headers['set-cookie'][1].split(';')[0];
-      const cookie3 = html.headers['set-cookie'][2].split(';')[0];
-      cookie = `${cookie1}; ${cookie2}; ${cookie3};`;
-    }
-
     if (html) {
-      return this.executeCommentIterator(html.data, cookie);
+      return this.executeCommentItorable(html.data);
+    } else {
+      throw 'Can not get video page';
     }
   }
-
-  public async executePatialCallback(
-    callback: (arr: string[], end: boolean) => void
-  ) {
+  public async executePatialCallback(callback: CommentCallback = null) {
     const html = await this.getHtml();
-    let cookie = '';
-    if (!this.isBrowser) {
-      const cookie1 = html.headers['set-cookie'][0].split(';')[0];
-      const cookie2 = html.headers['set-cookie'][1].split(';')[0];
-      const cookie3 = html.headers['set-cookie'][2].split(';')[0];
-      cookie = `${cookie1}; ${cookie2}; ${cookie3};`;
-    }
-
     if (html) {
-      this.executeCommentCallback(html.data, cookie, callback);
+      return await this.executeComment(html.data, callback);
+    } else {
+      throw 'Can not get video page';
     }
   }
 
   public async execute() {
     const html = await this.getHtml();
-    let cookie = '';
-    if (!this.isBrowser) {
-      const cookie1 = html.headers['set-cookie'][0].split(';')[0];
-      const cookie2 = html.headers['set-cookie'][1].split(';')[0];
-      const cookie3 = html.headers['set-cookie'][2].split(';')[0];
-      cookie = `${cookie1}; ${cookie2}; ${cookie3};`;
-    }
     if (html) {
-      return await this.executeComment(html.data, cookie);
+      return await this.executeComment(html.data);
+    } else {
+      throw 'Can not get video page';
     }
-    return null;
-  }
-
-  public getLastError() {
-    return this.lastError;
   }
 }
 

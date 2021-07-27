@@ -40,7 +40,6 @@ describe('crawling callback comment test', () => {
     });
   });
 });
-
 describe('crawling itorable comment test 230', () => {
   it('crawling itorable comment', async () => {
     const itor = await crawlingIterator('UcgvY9v6QmQ', 230);
@@ -54,7 +53,6 @@ describe('crawling itorable comment test 230', () => {
     expect(length).toEqual(230);
   });
 });
-
 describe('crawling callback comment test 230', () => {
   it('crawling callback comment', done => {
     let total = 0;

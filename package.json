@@ -6,7 +6,7 @@
   "types": "libs/bundle.d.ts",
   "scripts": {
     "test": "ts-node ./node_modules/jasmine/bin/jasmine --config=jasmine.json",
-    "dev": "nodemon --watch src --delay 1 --exec 'ts-node' test/test.ts",
+    "dev": "nodemon --watch src --delay 1 --exec 'ts-node' ./src/rundev.ts",
     "cpy:prod": "./node_modules/.bin/cpy ./dist/prod/bundle.d.ts ./libs/ & ./node_modules/.bin/cpy ./dist/prod/bundle.js ./libs/",
     "release": "npm run cpy:prod",
     "build:dev": "webpack --config webpack-config/webpack.dev.config.js",
